@@ -1,6 +1,5 @@
 <template>
   <div id="app">
-    <h1>网络调查问卷</h1>
     <SurveyExam />
   </div>
 </template>

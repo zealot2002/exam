@@ -11,8 +11,16 @@
       
       <div class="exam-intro">
         <h3>考试介绍</h3>
-        <p>本次考试为宠无忧主播岗位初试，您将回答多个问题，每个问题5分，共100分，80分以上通过。</p>
-        <p>考试时间：10分钟，考试过程中不能离开当前浏览器页面，否则视为成绩无效。</p>
+        <p>本次考试为宠无忧主播岗位初试，您将回答18道问题，每道题5分，共90分，75分以上视为通过。</p>
+        
+        <div class="exam-notes">
+          <h4>注意事项：</h4>
+          <ul>
+            <li>考试时间为10分钟，请在规定时间内答完试卷并提交，超过时间后无法提交。</li>
+            <li>考试过程中不能离开当前浏览器页面，否则视为成绩无效。</li>
+            <li>同一个手机号只能参加1次考试，多次考试无法提交。</li>
+          </ul>
+        </div>
       </div>
       
       <button @click="goToUserInfo" class="btn btn-primary btn-lg">开始考试</button>
@@ -33,18 +41,6 @@
             :class="{ 'invalid-input': submitted && !userInfo.student_name }"
           >
           <span class="error-message" v-if="submitted && !userInfo.student_name">请输入姓名</span>
-        </div>
-        
-        <div class="form-group">
-          <label for="studentId">考生ID</label>
-          <input 
-            type="text" 
-            id="studentId" 
-            v-model="userInfo.student_id" 
-            placeholder="请输入您的考生ID"
-            :class="{ 'invalid-input': submitted && !userInfo.student_id }"
-          >
-          <span class="error-message" v-if="submitted && !userInfo.student_id">请输入考生ID</span>
         </div>
         
         <div class="form-group">
@@ -200,7 +196,7 @@
     
     <!-- 页面4：考试结果页 -->
     <div v-else-if="currentPage === 'result'" class="result-page">
-      <div v-if="examResult.percentage >= 80" class="result-pass">
+      <div v-if="examResult.percentage >= 75" class="result-pass">
         <h2>恭喜您通过考试！</h2>
         <div class="score-display">{{ examResult.score }} / {{ examResult.total_questions * 5 }}</div>
         <p>请等待工作人员电话通知面试时间。</p>
@@ -209,18 +205,26 @@
       <div v-else class="result-fail">
         <h2>很遗憾，您未通过考试</h2>
         <div class="score-display">{{ examResult.score }} / {{ examResult.total_questions * 5 }}</div>
-        <p>通过分数线：80分</p>
+        <p>通过分数线：75分</p>
       </div>
       
       <div class="user-info-display">
         <h3>考生信息</h3>
         <p><strong>姓名：</strong>{{ examResult.student_name }}</p>
-        <p><strong>考生ID：</strong>{{ examResult.student_id }}</p>
         <p><strong>手机：</strong>{{ examResult.phone }}</p>
         <p v-if="examResult.organization"><strong>机构：</strong>{{ examResult.organization }}</p>
       </div>
       
-      <button @click="resetExam" class="btn btn-primary">重新开始</button>
+      <button @click="acknowledgeResult" class="btn btn-primary">好的</button>
+    </div>
+    
+    <!-- 错误提示模态窗口 -->
+    <div v-if="showErrorModal" class="error-modal-overlay">
+      <div class="error-modal">
+        <h3>提示</h3>
+        <p>{{ errorMessage }}</p>
+        <button @click="closeErrorModal" class="btn btn-primary">确定</button>
+      </div>
     </div>
   </div>
 </template>
@@ -238,10 +242,12 @@ export default {
       timer: null,
       pageLeaveDetected: false,
       loading: false,
-      apiBaseUrl: 'http://localhost:5001/api',
+      apiBaseUrl: '/api',
+      showErrorModal: false,
+      errorMessage: '',
       userInfo: {
         student_name: '',
-        student_id: '',
+        student_id: 'DEFAULT_ID',
         phone: '',
         organization: '',
         remarks: ''
@@ -282,7 +288,7 @@ export default {
     validateAndStartExam() {
       this.submitted = true;
       
-      if (this.userInfo.student_name && this.userInfo.student_id && this.isValidPhone && this.userInfo.organization) {
+      if (this.userInfo.student_name && this.isValidPhone && this.userInfo.organization) {
         this.loadQuestions();
       }
     },
@@ -300,11 +306,11 @@ export default {
           this.startTimer();
           this.setupPageLeaveDetection();
         } else {
-          alert('获取试题失败，请稍后再试');
+          this.showError('获取试题失败，请稍后再试');
         }
       } catch (error) {
         console.error('加载试题出错:', error);
-        alert('获取试题失败，请稍后再试');
+        this.showError(`获取试题失败: ${error.message || '请检查网络连接'}`);
       } finally {
         this.loading = false;
       }
@@ -364,6 +370,14 @@ export default {
     goToQuestion(index) {
       this.currentQuestionIndex = index;
     },
+    showError(message) {
+      this.errorMessage = message;
+      this.showErrorModal = true;
+    },
+    closeErrorModal() {
+      this.showErrorModal = false;
+      this.errorMessage = '';
+    },
     async submitExam() {
       clearInterval(this.timer);
       this.removePageLeaveDetection();
@@ -383,23 +397,46 @@ export default {
           body: JSON.stringify(submitData),
         });
         
-        if (!response.ok) {
-          throw new Error('提交考试答案失败');
-        }
-        
         const result = await response.json();
+        
         if (result.success) {
           this.examResult = result;
           this.currentPage = 'result';
         } else {
-          alert('提交考试答案失败: ' + (result.message || '未知错误'));
+          // 处理有明确错误信息的失败情况
+          const errorMessage = result.message || '未知错误';
+          if (errorMessage.includes('手机号') || errorMessage.includes('已参加')) {
+            this.showError('该手机号已参加过考试，每个手机号只能参加一次考试');
+          } else {
+            this.showError(`提交考试答案失败: ${errorMessage}`);
+          }
           // 如果提交失败，回到考试页面
           this.startTimer();
           this.setupPageLeaveDetection();
         }
       } catch (error) {
         console.error('提交考试答案出错:', error);
-        alert('提交考试答案失败，请稍后再试');
+        
+        // 尝试从响应中提取更多信息
+        if (error.response) {
+          try {
+            const errorData = await error.response.json();
+            if (errorData && errorData.message) {
+              if (errorData.message.includes('手机号') || errorData.message.includes('已参加')) {
+                this.showError('该手机号已参加过考试，每个手机号只能参加一次考试');
+              } else {
+                this.showError(`提交考试答案失败: ${errorData.message}`);
+              }
+            } else {
+              this.showError(`提交考试答案失败: ${error.message || '服务器错误'}`);
+            }
+          } catch (e) {
+            this.showError(`提交考试答案失败: ${error.message || '服务器错误'}`);
+          }
+        } else {
+          this.showError(`提交考试答案失败: ${error.message || '网络错误，请检查网络连接'}`);
+        }
+        
         // 如果提交失败，回到考试页面
         this.startTimer();
         this.setupPageLeaveDetection();
@@ -416,7 +453,7 @@ export default {
       // 重置用户信息
       this.userInfo = {
         student_name: '',
-        student_id: '',
+        student_id: 'DEFAULT_ID',
         phone: '',
         organization: '',
         remarks: ''
@@ -433,6 +470,9 @@ export default {
         total_questions: 0,
         percentage: 0
       };
+    },
+    acknowledgeResult() {
+      this.showError('感谢您参加本次考试！每个手机号只能参加一次考试。');
     }
   },
   beforeDestroy() {
@@ -472,6 +512,31 @@ export default {
 .company-intro p, .exam-intro p {
   line-height: 1.6;
   color: #495057;
+}
+
+.exam-notes {
+  background-color: #fff8f0;
+  border-left: 4px solid #f0ad4e;
+  padding: 15px;
+  margin-top: 15px;
+  border-radius: 4px;
+}
+
+.exam-notes h4 {
+  color: #f0ad4e;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.exam-notes ul {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.exam-notes li {
+  margin-bottom: 8px;
+  color: #555;
+  line-height: 1.5;
 }
 
 .btn-lg {
@@ -766,5 +831,44 @@ export default {
 .user-info-display p {
   margin: 8px 0;
   color: #495057;
+}
+
+/* 错误模态窗口样式 */
+.error-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.error-modal {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.error-modal h3 {
+  color: #dc3545;
+  margin-bottom: 15px;
+}
+
+.error-modal p {
+  margin-bottom: 20px;
+  color: #495057;
+}
+
+.error-modal button {
+  display: block;
+  margin: 0 auto;
+  min-width: 100px;
 }
 </style> 
