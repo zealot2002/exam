@@ -1,25 +1,11 @@
 <template>
   <div id="app">
-    <div class="nav-bar">
-      <button 
-        @click="currentView = 'exam'" 
-        :class="{ active: currentView === 'exam' }"
-      >
-        考试
-      </button>
-      <button 
-        @click="currentView = 'scores'" 
-        :class="{ active: currentView === 'scores' }"
-      >
-        成绩查询
-      </button>
+    <div v-if="showScores">
+      <ScoreList />
     </div>
-    
-    <div v-if="currentView === 'exam'">
-      <button @click="goToScores" class="test-btn">测试按钮 - 查看考生成绩</button>
-      <SurveyExam />
+    <div v-else>
+      <SurveyExam @backdoor-triggered="showScoresList" />
     </div>
-    <ScoreList v-if="currentView === 'scores'" />
   </div>
 </template>
 
@@ -35,12 +21,12 @@ export default {
   },
   data() {
     return {
-      currentView: 'exam'
+      showScores: false
     }
   },
   methods: {
-    goToScores() {
-      this.currentView = 'scores'
+    showScoresList() {
+      this.showScores = true
     }
   }
 }
@@ -69,38 +55,6 @@ body {
 h1 {
   margin-bottom: 30px;
   color: #42b983;
-}
-
-.nav-bar {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 30px;
-  background-color: white;
-  border-radius: 8px;
-  padding: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.nav-bar button {
-  background: none;
-  border: none;
-  padding: 10px 20px;
-  margin: 0 5px;
-  font-size: 16px;
-  color: #555;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.3s ease;
-}
-
-.nav-bar button:hover {
-  background-color: #f5f5f5;
-  color: #42b983;
-}
-
-.nav-bar button.active {
-  background-color: #42b983;
-  color: white;
 }
 
 .test-btn {

